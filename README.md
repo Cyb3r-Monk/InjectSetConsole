@@ -23,7 +23,7 @@ Alternatively, you can modify the search pattern to improve evasion.
 
 ## Demo Video
 
-Youtube EDRChoker: [https://youtu.be/hj05mT-45bo](https://youtu.be/hj05mT-45bo)
+Youtube: [https://youtu.be/DCUnbj_usPM](https://youtu.be/DCUnbj_usPM)
 
 
 ## 🐦 Enjoying my work? Support the journey by following me on X
