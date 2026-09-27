@@ -13,7 +13,7 @@ int main(int argc, char* argv[]) {
     // 1. Ensure a command was passed via command line arguments
     if (argc < 2) {
         std::cout << "Usage: " << argv[0] << " <executable_path>\n";
-        std::cout << "Example: " << argv[0] << " C:\\Windows\\System32\\cmd.exe\n";
+        std::cout << "Example: " << argv[0] << " C:\\Windows\\System32\\netsh.exe\n";
         return 1;
     }
     //std::string cmdStr = argv[2];
