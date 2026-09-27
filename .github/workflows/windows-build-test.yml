@@ -1,0 +1,56 @@
+name: Windows build and smoke test
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build-and-test:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup MSBuild
+        uses: microsoft/setup-msbuild@v2
+
+      - name: Build InjectSetConsole (Release x64)
+        run: msbuild InjectSetConsole.vcxproj /p:Configuration=Release /p:Platform=x64
+
+      - name: Smoke test netsh interaction
+        shell: powershell
+        run: |
+          $exe = Join-Path $PWD "x64\Release\InjectSetConsole.exe"
+          if (-not (Test-Path $exe)) {
+            throw "Compiled binary not found at $exe"
+          }
+
+          $target = "C:\Windows\System32\netsh.exe"
+          $proc = Start-Process -FilePath $exe -ArgumentList $target -PassThru
+          Start-Sleep -Seconds 6
+
+          $wshell = New-Object -ComObject WScript.Shell
+          $activated = $wshell.AppActivate($proc.Id)
+          if (-not $activated) {
+            throw "Could not activate target window for input"
+          }
+
+          Start-Sleep -Seconds 1
+          $wshell.SendKeys("g{ENTER}")
+          Start-Sleep -Seconds 6
+
+          $notepad = Get-Process -Name notepad -ErrorAction SilentlyContinue | Select-Object -First 1
+          if (-not $notepad) {
+            throw "Smoke test failed: notepad.exe was not launched"
+          }
+
+          Stop-Process -Name notepad -Force -ErrorAction SilentlyContinue
+          Stop-Process -Name netsh -Force -ErrorAction SilentlyContinue
+          if (-not $proc.HasExited) {
+            Stop-Process -Id $proc.Id -Force -ErrorAction SilentlyContinue
+          }
+
+      - name: Upload compiled binary
+        uses: actions/upload-artifact@v4
+        with:
+          name: InjectSetConsole-x64-Release
+          path: x64/Release/InjectSetConsole.exe
