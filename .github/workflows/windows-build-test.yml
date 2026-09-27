@@ -30,25 +30,50 @@ jobs:
           }
 
           $target = "C:\Windows\System32\netsh.exe"
-          $proc = Start-Process -FilePath $exe -ArgumentList $target -PassThru
-          Start-Sleep -Seconds 6
+          $startInfo = New-Object System.Diagnostics.ProcessStartInfo
+          $startInfo.FileName = $exe
+          $startInfo.Arguments = $target
+          $startInfo.UseShellExecute = $false
+          $startInfo.RedirectStandardInput = $true
+          $startInfo.RedirectStandardOutput = $true
+          $startInfo.RedirectStandardError = $true
 
-          $netsh = Get-Process -Name netsh -ErrorAction SilentlyContinue | Sort-Object StartTime -Descending | Select-Object -First 1
-          if (-not $netsh) {
-            throw "Could not find netsh.exe process for smoke test input"
+          $proc = New-Object System.Diagnostics.Process
+          $proc.StartInfo = $startInfo
+          $null = $proc.Start()
+
+          $doneSeen = $false
+          $deadline = (Get-Date).AddSeconds(60)
+          while ((Get-Date) -lt $deadline) {
+            while (-not $proc.StandardOutput.EndOfStream) {
+              $line = $proc.StandardOutput.ReadLine()
+              if ($line) { Write-Host $line }
+              if ($line -like "*Done. Main thread now executing*") {
+                $doneSeen = $true
+                break
+              }
+            }
+
+            if ($doneSeen) { break }
+            if ($proc.HasExited) { break }
+            Start-Sleep -Milliseconds 500
           }
 
-          $wshell = New-Object -ComObject WScript.Shell
-          $activated = $wshell.AppActivate($netsh.Id)
-          if (-not $activated) {
-            throw "Could not activate netsh window for input"
+          if (-not $doneSeen) {
+            throw "Smoke test did not reach thread execution marker"
           }
 
-          Start-Sleep -Seconds 1
-          $wshell.SendKeys("g{ENTER}")
-          Start-Sleep -Seconds 6
+          $proc.StandardInput.WriteLine("g")
+          $proc.StandardInput.Flush()
 
-          $notepad = Get-Process -Name notepad -ErrorAction SilentlyContinue | Select-Object -First 1
+          $notepad = $null
+          $notepadDeadline = (Get-Date).AddSeconds(30)
+          while ((Get-Date) -lt $notepadDeadline) {
+            $notepad = Get-Process -Name notepad -ErrorAction SilentlyContinue | Select-Object -First 1
+            if ($notepad) { break }
+            Start-Sleep -Milliseconds 500
+          }
+
           if (-not $notepad) {
             throw "Smoke test failed: notepad.exe was not launched"
           }
@@ -56,7 +81,7 @@ jobs:
           Stop-Process -Name notepad -Force -ErrorAction SilentlyContinue
           Stop-Process -Name netsh -Force -ErrorAction SilentlyContinue
           if (-not $proc.HasExited) {
-            Stop-Process -Id $proc.Id -Force -ErrorAction SilentlyContinue
+            $proc.Kill()
           }
 
       - name: Upload compiled binary
