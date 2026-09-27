@@ -1,6 +1,9 @@
 name: Build Windows Binary
 
 on:
+  push:
+    branches:
+      - copilot/replace-existing-binary
   workflow_dispatch:
 
 jobs:
