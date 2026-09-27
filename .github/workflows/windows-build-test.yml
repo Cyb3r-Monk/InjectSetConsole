@@ -30,19 +30,22 @@ jobs:
           }
 
           $target = "C:\Windows\System32\netsh.exe"
-          $startInfo = New-Object System.Diagnostics.ProcessStartInfo
-          $startInfo.FileName = $exe
-          $startInfo.Arguments = $target
-          $startInfo.UseShellExecute = $false
-          $startInfo.RedirectStandardInput = $true
-
-          $proc = New-Object System.Diagnostics.Process
-          $proc.StartInfo = $startInfo
-          $null = $proc.Start()
+          $proc = Start-Process -FilePath $exe -ArgumentList $target -PassThru
           Start-Sleep -Seconds 6
 
-          $proc.StandardInput.WriteLine("g")
-          $proc.StandardInput.Flush()
+          $netsh = Get-Process -Name netsh -ErrorAction SilentlyContinue | Sort-Object StartTime -Descending | Select-Object -First 1
+          if (-not $netsh) {
+            throw "Could not find netsh.exe process for smoke test input"
+          }
+
+          $wshell = New-Object -ComObject WScript.Shell
+          $activated = $wshell.AppActivate($netsh.Id)
+          if (-not $activated) {
+            throw "Could not activate netsh window for input"
+          }
+
+          Start-Sleep -Seconds 1
+          $wshell.SendKeys("g{ENTER}")
           Start-Sleep -Seconds 6
 
           $notepad = Get-Process -Name notepad -ErrorAction SilentlyContinue | Select-Object -First 1
