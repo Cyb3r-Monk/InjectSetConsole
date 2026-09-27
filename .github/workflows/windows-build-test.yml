@@ -30,17 +30,19 @@ jobs:
           }
 
           $target = "C:\Windows\System32\netsh.exe"
-          $proc = Start-Process -FilePath $exe -ArgumentList $target -PassThru
+          $startInfo = New-Object System.Diagnostics.ProcessStartInfo
+          $startInfo.FileName = $exe
+          $startInfo.Arguments = $target
+          $startInfo.UseShellExecute = $false
+          $startInfo.RedirectStandardInput = $true
+
+          $proc = New-Object System.Diagnostics.Process
+          $proc.StartInfo = $startInfo
+          $null = $proc.Start()
           Start-Sleep -Seconds 6
 
-          $wshell = New-Object -ComObject WScript.Shell
-          $activated = $wshell.AppActivate($proc.Id)
-          if (-not $activated) {
-            throw "Could not activate target window for input"
-          }
-
-          Start-Sleep -Seconds 1
-          $wshell.SendKeys("g{ENTER}")
+          $proc.StandardInput.WriteLine("g")
+          $proc.StandardInput.Flush()
           Start-Sleep -Seconds 6
 
           $notepad = Get-Process -Name notepad -ErrorAction SilentlyContinue | Select-Object -First 1
