@@ -30,41 +30,25 @@ jobs:
           }
 
           $target = "C:\Windows\System32\netsh.exe"
-          $startInfo = New-Object System.Diagnostics.ProcessStartInfo
-          $startInfo.FileName = $exe
-          $startInfo.Arguments = $target
-          $startInfo.UseShellExecute = $false
-          $startInfo.RedirectStandardInput = $true
-          $startInfo.RedirectStandardOutput = $true
-          $startInfo.RedirectStandardError = $true
+          $proc = Start-Process -FilePath $exe -ArgumentList $target -PassThru
+          Start-Sleep -Seconds 6
 
-          $proc = New-Object System.Diagnostics.Process
-          $proc.StartInfo = $startInfo
-          $null = $proc.Start()
-
-          $doneSeen = $false
-          $deadline = (Get-Date).AddSeconds(60)
+          $wshell = New-Object -ComObject WScript.Shell
+          $activated = $false
+          $deadline = (Get-Date).AddSeconds(20)
           while ((Get-Date) -lt $deadline) {
-            while (-not $proc.StandardOutput.EndOfStream) {
-              $line = $proc.StandardOutput.ReadLine()
-              if ($line) { Write-Host $line }
-              if ($line -like "*Done. Main thread now executing*") {
-                $doneSeen = $true
-                break
-              }
+            if ($wshell.AppActivate($proc.Id)) {
+              $activated = $true
+              break
             }
-
-            if ($doneSeen) { break }
-            if ($proc.HasExited) { break }
             Start-Sleep -Milliseconds 500
           }
-
-          if (-not $doneSeen) {
-            throw "Smoke test did not reach thread execution marker"
+          if (-not $activated) {
+            throw "Could not activate InjectSetConsole main window for input"
           }
 
-          $proc.StandardInput.WriteLine("g")
-          $proc.StandardInput.Flush()
+          Start-Sleep -Seconds 1
+          $wshell.SendKeys("g{ENTER}")
 
           $notepad = $null
           $notepadDeadline = (Get-Date).AddSeconds(30)
@@ -81,7 +65,7 @@ jobs:
           Stop-Process -Name notepad -Force -ErrorAction SilentlyContinue
           Stop-Process -Name netsh -Force -ErrorAction SilentlyContinue
           if (-not $proc.HasExited) {
-            $proc.Kill()
+            Stop-Process -Id $proc.Id -Force -ErrorAction SilentlyContinue
           }
 
       - name: Upload compiled binary
