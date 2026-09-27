@@ -1,6 +1,9 @@
 name: Windows build and smoke test
 
 on:
+  push:
+    branches:
+      - copilot/add-compiled-binary-to-repo
   workflow_dispatch:
 
 jobs:
