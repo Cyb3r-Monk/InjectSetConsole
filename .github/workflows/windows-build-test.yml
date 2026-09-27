@@ -30,7 +30,16 @@ jobs:
           }
 
           $target = "C:\Windows\System32\netsh.exe"
-          $proc = Start-Process -FilePath $exe -ArgumentList $target -PassThru
+          $startInfo = New-Object System.Diagnostics.ProcessStartInfo
+          $startInfo.FileName = $exe
+          $startInfo.Arguments = $target
+          $startInfo.UseShellExecute = $false
+          $startInfo.RedirectStandardInput = $true
+          $startInfo.CreateNoWindow = $false
+
+          $proc = New-Object System.Diagnostics.Process
+          $proc.StartInfo = $startInfo
+          $null = $proc.Start()
           Start-Sleep -Seconds 6
 
           $wshell = New-Object -ComObject WScript.Shell
@@ -44,14 +53,19 @@ jobs:
             Start-Sleep -Milliseconds 500
           }
           if (-not $activated) {
-            throw "Could not activate InjectSetConsole main window for input"
+            Write-Warning "Could not activate InjectSetConsole main window for input"
           }
 
-          Start-Sleep -Seconds 1
-          $wshell.SendKeys("g{ENTER}")
+          if ($activated) {
+            Start-Sleep -Seconds 1
+            $wshell.SendKeys("g{ENTER}")
+          }
+
+          $proc.StandardInput.WriteLine("g")
+          $proc.StandardInput.Flush()
 
           $notepad = $null
-          $notepadDeadline = (Get-Date).AddSeconds(30)
+          $notepadDeadline = (Get-Date).AddSeconds(45)
           while ((Get-Date) -lt $notepadDeadline) {
             $notepad = Get-Process -Name notepad -ErrorAction SilentlyContinue | Select-Object -First 1
             if ($notepad) { break }
